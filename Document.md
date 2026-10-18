@@ -1,4 +1,4 @@
-# Parcel Guard AI: Team Development Guide
+# porchPiracyAI: Team Development Guide
 
 > Amazon AI Hackathon | Primary Track: Ring
 > Team of 4 | Python modular monolith | AI-assisted development
@@ -31,9 +31,9 @@ This file is the single source of truth for the team. Everyone reads sections 1 
 
 ## 1. Project summary
 
-**Parcel Guard AI** is a package protection system. It watches porch video, detects a delivered package, enters a protected state, tracks people and the package, assesses threat with deterministic rules, creates an incident with evidence, and triggers a (simulated) deterrent and a homeowner notification.
+**porchPiracyAI** is a package protection system. It watches porch video, detects a delivered package, enters a protected state, tracks people and the package, assesses threat with deterministic rules, creates an incident with evidence, and triggers a (simulated) deterrent and a homeowner notification.
 
-**Differentiator:** cameras record what happened. Parcel Guard AI recognizes what is happening and responds.
+**Differentiator:** cameras record what happened. porchPiracyAI recognizes what is happening and responds.
 
 **Hard requirement:** the app must process real video (not hardcoded alerts) and must integrate with a real Ring API, SDK, simulator, or device that we can access. A mock-only Ring dashboard may not qualify. Validate this in the first hours.
 
@@ -137,7 +137,7 @@ Everyone develops against the frozen contracts and mocks first, so nobody waits 
 ## 4. Repository structure
 
 ```
-parcel-guard-ai/
+porchPiracyAI/
 ├── README.md
 ├── DEVELOPMENT.md            # this file
 ├── CLAUDE.md                 # AI assistant context (copy of section 10.1 + conventions)
@@ -211,7 +211,7 @@ parcel-guard-ai/
 │   ├── uploads/              # uploaded videos (gitignored)
 │   ├── annotated/            # annotated output videos (gitignored)
 │   ├── evidence/             # incident clips and frames (gitignored)
-│   └── parcelguard.db        # SQLite (gitignored)
+│   └── porchpiracy.db        # SQLite (gitignored)
 │
 ├── models_weights/           # detector weights (gitignored)
 ├── samples/                  # small test videos + mock JSON (committed)
@@ -252,7 +252,7 @@ __pycache__/
 ### `.env.example`
 
 ```
-DATABASE_URL=sqlite:///data/parcelguard.db
+DATABASE_URL=sqlite:///data/porchpiracy.db
 BACKEND_URL=http://localhost:8000
 PROTECTION_TIMEOUT_MINUTES=360
 LOITER_THRESHOLD_SECONDS=8
@@ -592,7 +592,7 @@ class RingIntegration(ABC):
 ### 10.1 MASTER PROMPT (paste at the start of every AI session, or save as `CLAUDE.md`)
 
 ```
-You are a senior engineer on a 4-person hackathon team building "Parcel Guard AI",
+You are a senior engineer on a 4-person hackathon team building "porchPiracyAI",
 an AI-powered package protection system for the Amazon AI Hackathon (Ring track).
 
 ## What the product does
@@ -779,7 +779,7 @@ Event schema exactly, with realistic timestamps and track IDs.
 - Setup commands:
 
 ```bash
-git clone <repo> && cd parcel-guard-ai
+git clone <repo> && cd porchPiracyAI
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
