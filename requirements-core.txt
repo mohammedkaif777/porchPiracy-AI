@@ -1,0 +1,21 @@
+# Core dependencies only: enough to run the FastAPI backend, the Streamlit
+# dashboard, the full test suite and the mock-mode demo.
+#
+# The vision pipeline (OpenCV / Ultralytics / supervision) is optional and is
+# imported lazily, so the app boots and every test passes without it.
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+pydantic-settings>=2.2
+sqlmodel>=0.0.14
+python-multipart>=0.0.9
+httpx>=0.27
+requests>=2.31
+python-dotenv>=1.0
+numpy>=1.26
+streamlit>=1.35
+streamlit-autorefresh>=1.0.1
+pytest>=8.0
+pytest-cov>=4.1
+ruff>=0.4

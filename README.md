@@ -380,4 +380,4 @@ Copy `.env.example` to `.env` and adjust:
 
 - License: `<choose, e.g. MIT>`. Note that Ultralytics YOLO is licensed under AGPL-3.0; review this before any commercial use.
 - Built with FastAPI, Streamlit, OpenCV, Ultralytics YOLO, supervision, SQLModel, and Ollama.
-- Built for the Amazon AI Hackathon (Ring track).
+- Built for the Amazon AI Hackathon (Ring track).  

@@ -1,0 +1,67 @@
+# porchPiracyAI - single source of truth for ruff / pytest / packaging metadata.
+
+[project]
+name = "porchpiracyai"
+version = "0.1.0"
+description = "AI-powered package protection for the Ring ecosystem (Amazon AI Hackathon, Ring track)."
+readme = "README.md"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["backend", "frontend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["data", "models_weights", ".venv"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "C4",   # comprehensions
+    "SIM",  # simplify
+    "RET",  # return
+    "ARG",  # unused arguments
+    "PTH",  # pathlib
+    "N",    # pep8 naming
+    "D",    # pydocstyle
+]
+ignore = [
+    "D203",  # incompatible with D211
+    "D213",  # incompatible with D212
+    "D401",  # imperative mood is not always natural
+    "B008",  # FastAPI Depends() in defaults is the documented idiom
+    "ARG001", # abstract methods and callbacks legitimately ignore arguments
+    "N803",  # FastAPI/Pydantic field names are snake_case by convention
+    "N815",  # mixedCase in class scope is used by Pydantic aliases
+    "E501",  # long lines are caught by the formatter, not the linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D100", "D101", "D102", "D103", "D104", "ARG001", "ARG002", "SIM117"]
+"frontend/*" = ["D100", "D103", "E402"]
+"main.py" = ["D100"]
+"app.py" = ["D100", "E402"]
+"backend/api/routes/*" = ["D100"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = ["backend/services/video_service.py", "backend/services/evidence_service.py"]
