@@ -10,6 +10,7 @@ from frontend.components import (
     error_state,
     event_feed,
     severity_badge,
+    simulated_badge,
     status_card,
     threat_badge,
 )
@@ -29,10 +30,18 @@ def render() -> None:
         "AI-powered porch piracy detection and prevention</p>",
         unsafe_allow_html=True,
     )
+    st.caption(
+        "Cameras record what happened. This system recognizes what is happening and responds."
+    )
+    if api_client.fallback_notice():
+        st.warning("Backend is not reachable. Showing sample data so the UI still runs.")
+    elif api_client.using_mock():
+        st.warning("Demo data mode (USE_MOCK=true).")
     st.divider()
 
     try:
         api_client.get_health()
+        ring = api_client.get_ring_status()
         protection = api_client.get_protection_status()
         incidents = api_client.get_incidents(limit=10)
         events = api_client.get_events(limit=20)
@@ -73,15 +82,34 @@ def render() -> None:
                 sev = inc.get("severity", "LOW")
                 st.markdown(
                     f'<div class="event-item">'
-                    f'{severity_badge(sev)} '
-                    f'<strong>{", ".join(inc.get("reason_codes", []))}</strong>'
+                    f"{severity_badge(sev)} "
+                    f"<strong>{', '.join(inc.get('reason_codes', []))}</strong>"
                     f'<br><span style="color:#A0AEC0;font-size:0.85em;">'
-                    f'{inc.get("start_s", 0):.1f}s – {inc.get("end_s", 0):.1f}s</span>'
+                    f"{inc.get('start_s', 0):.1f}s – {inc.get('end_s', 0):.1f}s</span>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
         else:
             empty_state("All Clear", "No incidents have been raised.")
+
+    st.divider()
+    st.subheader("Ring integration")
+    if ring.get("simulated"):
+        st.markdown(simulated_badge(), unsafe_allow_html=True)
+    st.caption(ring.get("message") or "")
+    caps = ring.get("capabilities") or []
+    if caps:
+        st.dataframe(
+            [
+                {
+                    "Capability": item.get("name"),
+                    "Supported": "Yes" if item.get("supported") else "No",
+                    "Simulated": "Yes" if item.get("simulated") else "No",
+                }
+                for item in caps
+            ],
+            hide_index=True,
+        )
 
 
 render()

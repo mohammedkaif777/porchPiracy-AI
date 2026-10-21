@@ -57,6 +57,12 @@ class TestProtection:
         client.post("/protection/start", json={})
         second = client.post("/protection/start", json={})
         assert second.status_code == 409
+        assert second.json()["code"] == "PROTECTION_ALREADY_ACTIVE"
+
+    def test_end_without_session_returns_404(self, client: TestClient) -> None:
+        response = client.post("/protection/end")
+        assert response.status_code == 404
+        assert response.json()["code"] == "NO_ACTIVE_PROTECTION"
 
 
 class TestSimulateDelivery:
@@ -67,6 +73,7 @@ class TestSimulateDelivery:
         assert response.status_code == 201
         data = response.json()
         assert data["source"] == "SIMULATED_DELIVERY"
+        assert data["state"] == "PROTECTION_ACTIVE"
 
     def test_simulate_delivery_conflict(self, client: TestClient) -> None:
         client.post("/simulate/delivery", json={})

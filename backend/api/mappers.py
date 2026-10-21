@@ -141,4 +141,3 @@ __all__ = [
     "protection_to_schema",
     "video_to_schema",
 ]
-

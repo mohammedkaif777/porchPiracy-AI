@@ -59,8 +59,12 @@ def get_engine() -> Engine:
     return _engine
 
 
-def set_engine(engine: Engine) -> None:
-    """Replace the process-wide engine. Used by the test suite."""
+def set_engine(engine: Engine | None) -> None:
+    """Replace the process-wide engine. Used by the test suite.
+
+    Pass ``None`` to drop the engine so the next call to :func:`get_engine`
+    creates a fresh one.
+    """
     global _engine
     _engine = engine
 

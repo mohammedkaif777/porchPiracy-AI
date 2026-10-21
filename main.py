@@ -22,6 +22,7 @@ from backend.core.exceptions import (
     InvalidTransition,
     NoActiveProtectionError,
     NotFoundError,
+    PorchPiracyError,
     ProtectionAlreadyActiveError,
     ValidationError,
     VisionDependencyError,
@@ -30,6 +31,26 @@ from backend.core.logging_config import configure_logging, get_logger
 from backend.schemas.system_schema import HealthResponse
 
 logger = get_logger(__name__)
+
+_STATUS_BY_ERROR: dict[type[PorchPiracyError], int] = {
+    NotFoundError: 404,
+    NoActiveProtectionError: 404,
+    ProtectionAlreadyActiveError: 409,
+    InvalidTransition: 400,
+    ValidationError: 400,
+    VisionDependencyError: 503,
+    IntegrationError: 502,
+}
+
+_CODE_BY_ERROR: dict[type[PorchPiracyError], str] = {
+    NotFoundError: "NOT_FOUND",
+    NoActiveProtectionError: "NO_ACTIVE_PROTECTION",
+    ProtectionAlreadyActiveError: "PROTECTION_ALREADY_ACTIVE",
+    InvalidTransition: "INVALID_TRANSITION",
+    ValidationError: "VALIDATION_ERROR",
+    VisionDependencyError: "VISION_DEPENDENCY",
+    IntegrationError: "INTEGRATION_ERROR",
+}
 
 
 @asynccontextmanager
@@ -54,19 +75,16 @@ settings = get_settings()
 app = FastAPI(
     title="porchPiracyAI",
     version=settings.version,
-    description="AI-powered porch piracy detection and prevention system.",
+    description="Package protection API: ingest events, run deterministic rules, notify the homeowner.",
     lifespan=lifespan,
 )
 
-# CORS — allow the Streamlit dashboard and local dev origins.
+# Wildcard origins cannot be combined with credentials; Streamlit is the only UI.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8501",
         "http://127.0.0.1:8501",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -74,53 +92,19 @@ app.add_middleware(
 )
 
 
-# ----------------------------------------------------------------- exception handlers
-
-
-@app.exception_handler(NotFoundError)
-async def _not_found(_request: Request, exc: NotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
-
-
-@app.exception_handler(ProtectionAlreadyActiveError)
-async def _already_active(_request: Request, exc: ProtectionAlreadyActiveError) -> JSONResponse:
-    return JSONResponse(status_code=409, content={"detail": str(exc)})
-
-
-@app.exception_handler(NoActiveProtectionError)
-async def _no_active(_request: Request, exc: NoActiveProtectionError) -> JSONResponse:
-    return JSONResponse(status_code=409, content={"detail": str(exc)})
-
-
-@app.exception_handler(InvalidTransition)
-async def _invalid_transition(_request: Request, exc: InvalidTransition) -> JSONResponse:
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
-@app.exception_handler(ValidationError)
-async def _validation(_request: Request, exc: ValidationError) -> JSONResponse:
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
-@app.exception_handler(VisionDependencyError)
-async def _vision_dep(_request: Request, exc: VisionDependencyError) -> JSONResponse:
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-
-@app.exception_handler(IntegrationError)
-async def _integration(_request: Request, exc: IntegrationError) -> JSONResponse:
-    return JSONResponse(status_code=502, content={"detail": str(exc)})
-
-
-# ----------------------------------------------------------------- health check
+@app.exception_handler(PorchPiracyError)
+async def handle_domain_error(_request: Request, exc: PorchPiracyError) -> JSONResponse:
+    """Map domain errors onto the frozen ``{detail, code}`` error body."""
+    status = _STATUS_BY_ERROR.get(type(exc), 400)
+    code = _CODE_BY_ERROR.get(type(exc), "DOMAIN_ERROR")
+    return JSONResponse(status_code=status, content={"detail": str(exc), "code": code})
 
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health() -> HealthResponse:
-    """Simple health check."""
-    return HealthResponse(version=settings.version)
+    """Liveness probe used by the dashboard."""
+    current = get_settings()
+    return HealthResponse(status="ok", service="porchpiracyai", version=current.version)
 
-
-# ----------------------------------------------------------------- routes
 
 app.include_router(router)

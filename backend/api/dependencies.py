@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from fastapi import Depends
 from sqlmodel import Session
 
 from backend.core.config import Settings, get_settings
@@ -24,23 +25,30 @@ def app_settings() -> Settings:
     return get_settings()
 
 
-def protection_manager(session: Session, settings: Settings | None = None) -> ProtectionSessionManager:
+def protection_manager(
+    session: Session = Depends(db_session),
+    settings: Settings = Depends(app_settings),
+) -> ProtectionSessionManager:
     """Return a protection session manager bound to the request session."""
-    config = settings or get_settings()
-    return ProtectionSessionManager(session, timeout_minutes=config.protection_timeout_minutes)
+    return ProtectionSessionManager(session, timeout_minutes=settings.protection_timeout_minutes)
 
 
-def incident_service(session: Session, settings: Settings | None = None) -> IncidentService:
+def incident_service(
+    session: Session = Depends(db_session),
+    settings: Settings = Depends(app_settings),
+) -> IncidentService:
     """Return an incident service bound to the request session."""
-    config = settings or get_settings()
-    return IncidentService(session, cooldown_seconds=config.incident_cooldown_seconds)
+    return IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
 
 
-def response_service(session: Session, settings: Settings | None = None) -> ResponseService:
+def response_service(
+    session: Session = Depends(db_session),
+    settings: Settings = Depends(app_settings),
+) -> ResponseService:
     """Return a response service bound to the request session."""
-    return ResponseService(session, settings or get_settings())
+    return ResponseService(session, settings)
 
 
-def threat_thresholds(settings: Settings | None = None) -> ThreatThresholds:
+def threat_thresholds(settings: Settings = Depends(app_settings)) -> ThreatThresholds:
     """Return the thresholds used by the rule engine."""
-    return ThreatThresholds.from_settings(settings or get_settings())
+    return ThreatThresholds.from_settings(settings)

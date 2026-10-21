@@ -13,6 +13,7 @@ by the deterministic rule engine.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -34,7 +35,7 @@ logger = get_logger(__name__)
 
 ALERT_PREFIX = "Potential package theft, for review"
 DETERRENT_MESSAGE = (
-    "Simulated Alexa deterrent: \"This package is being monitored. Please leave it where it is.\""
+    'Simulated Alexa deterrent: "This package is being monitored. Please leave it where it is."'
 )
 
 
@@ -42,6 +43,7 @@ class ResponseService:
     """Runs the side effects of an incident."""
 
     def __init__(self, session: Session, settings: Settings | None = None) -> None:
+        """Bind notifiers, evidence and the LLM explainer to this session."""
         self._session = session
         self._settings = settings or get_settings()
         self._incidents = IncidentService(session)
@@ -179,7 +181,7 @@ class ResponseService:
         self._incidents.set_evidence(
             incident.incident_id,
             result.clip_path,
-            metadata=str(result.to_dict()),
+            metadata=json.dumps(result.to_dict()),
         )
 
     def _explain(self, incident: Incident, events: list[Event]) -> None:

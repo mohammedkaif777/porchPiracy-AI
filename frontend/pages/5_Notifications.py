@@ -24,6 +24,16 @@ def render() -> None:
         empty_state("No Notifications", "Notifications will appear here as incidents are raised.")
         return
 
+    st.subheader("Simulated Alexa deterrent")
+    st.markdown(simulated_badge(), unsafe_allow_html=True)
+    deterrents = [item for item in notifications if item.get("channel") == "deterrent"]
+    if deterrents:
+        for item in deterrents:
+            st.info(item.get("message") or "Simulated Alexa: 'This package is being monitored.'")
+    else:
+        st.caption("A Simulated Alexa line appears when an incident is opened.")
+
+    st.subheader("History")
     for n in notifications:
         channel = n.get("channel", "dashboard")
         message = n.get("message", "")
@@ -37,7 +47,7 @@ def render() -> None:
             f"""
             <div class="event-item">
                 <strong>{channel_emoji} {channel.upper()}</strong> {sim_tag}
-                <span style="float:right;color:#A0AEC0;font-size:0.8em;">{created[:19] if created else ''}</span>
+                <span style="float:right;color:#A0AEC0;font-size:0.8em;">{created[:19] if created else ""}</span>
                 <br><span style="color:#E2E8F0;">{message}</span>
             </div>
             """,
