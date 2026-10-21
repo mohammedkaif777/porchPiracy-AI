@@ -38,8 +38,8 @@ class TestBBoxDistance:
         assert bbox_distance([0, 0, 10, 10], [0, 0, 10, 10]) == pytest.approx(0.0)
 
     def test_known_distance(self) -> None:
-        # centroids at (5,5) and (8,9) → sqrt(9+16) = 5.0
-        d = bbox_distance([0, 0, 10, 10], [3, 4, 13, 14])
+        # disjoint boxes with dx=3 and dy=4 → sqrt(9+16) = 5.0
+        d = bbox_distance([0, 0, 10, 10], [13, 14, 23, 24])
         assert d == pytest.approx(5.0, abs=0.01)
 
 

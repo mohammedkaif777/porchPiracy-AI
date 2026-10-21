@@ -121,7 +121,7 @@ def get_ring_status() -> dict:
 def upload_video(file_path: str) -> dict:
     if _USE_MOCK:
         return {"video_id": "mock-video-001", "status": "UPLOADED", "filename": Path(file_path).name}
-    with open(file_path, "rb") as f:
+    with Path(file_path).open("rb") as f:
         resp = requests.post(
             _url("/videos"),
             files={"file": (Path(file_path).name, f, "video/mp4")},

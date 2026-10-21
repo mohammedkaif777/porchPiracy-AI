@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 # Override the database URL and env BEFORE importing anything from the backend.
@@ -33,15 +33,20 @@ def _test_settings() -> Iterator[None]:
     reload_settings()
 
 
-@pytest.fixture()
-def engine() -> Engine:
+@pytest.fixture(autouse=True)
+def engine() -> Iterator[Engine]:
     """Create a fresh in-memory SQLite engine with all tables."""
-    eng = create_engine("sqlite://", connect_args={"check_same_thread": False})
+    eng = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     import backend.models  # noqa: F401 — registers the tables
 
     SQLModel.metadata.create_all(eng)
     set_engine(eng)
-    return eng
+    yield eng
+    set_engine(None)
 
 
 @pytest.fixture()

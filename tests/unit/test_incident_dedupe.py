@@ -4,12 +4,9 @@ Tests: same person → escalation (not duplicate), different person → new inci
 review/dismiss opens a new incident window.
 """
 
-from datetime import UTC, datetime
 
-import pytest
 from sqlmodel import Session
 
-from backend.models.incident import Incident
 from backend.schemas.enums import IncidentStatus, ReasonCode, Severity, ThreatLevel
 from backend.schemas.incident_schema import ThreatAssessment
 from backend.services.incident_service import IncidentService

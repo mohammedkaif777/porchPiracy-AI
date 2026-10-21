@@ -11,15 +11,15 @@ escalation updates the existing incident instead of raising a new alert.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Sequence
 
 from sqlmodel import Session, select
 
 from backend.core.exceptions import NotFoundError, ValidationError
 from backend.core.logging_config import get_logger
-from backend.models.incident import Incident
 from backend.models.event import Event
+from backend.models.incident import Incident
 from backend.schemas.enums import IncidentStatus, ReasonCode, Severity
 from backend.schemas.incident_schema import ThreatAssessment
 

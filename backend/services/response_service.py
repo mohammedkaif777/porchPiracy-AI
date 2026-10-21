@@ -25,7 +25,7 @@ from backend.integrations.notifications.dashboard_notifier import DashboardNotif
 from backend.integrations.notifications.telegram_notifier import TelegramNotifier
 from backend.models.event import Event
 from backend.models.incident import Incident
-from backend.schemas.enums import AllowedAction, NotificationChannel, Severity
+from backend.schemas.enums import AllowedAction, NotificationChannel
 from backend.services.evidence_service import create_evidence, write_metadata
 from backend.services.incident_service import IncidentService
 from backend.services.llm_service import LLMService, build_summary
@@ -107,7 +107,12 @@ class ResponseService:
         latest = self._session.exec(statement).first()
         if latest is None or latest.created_at is None:
             return True
-        elapsed = (datetime.now(UTC) - latest.created_at).total_seconds()
+        latest_created = (
+            latest.created_at
+            if latest.created_at.tzinfo is not None
+            else latest.created_at.replace(tzinfo=UTC)
+        )
+        elapsed = (datetime.now(UTC) - latest_created).total_seconds()
         return elapsed >= self._settings.incident_cooldown_seconds
 
     # ------------------------------------------------------------------ pieces

@@ -12,8 +12,8 @@ The module never touches the database or the network: it returns
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from backend.core.logging_config import get_logger
 from backend.schemas.enums import EventType
@@ -108,9 +108,15 @@ def point_in_polygon(point: tuple[float, float], polygon: Zone) -> bool:
     return inside
 
 
-def is_near(person_bbox: BBox, package_bbox: BBox, distance_px: float) -> bool:
+def is_near(
+    person_bbox: BBox,
+    package_bbox: BBox,
+    distance_px: float = 150.0,
+    threshold: float | None = None,
+) -> bool:
     """Return whether a person is close enough to the package to be "near" it."""
-    return bbox_distance(person_bbox, package_bbox) <= distance_px
+    limit = threshold if threshold is not None else distance_px
+    return bbox_distance(person_bbox, package_bbox) <= limit
 
 
 def is_interaction(person_bbox: BBox, package_bbox: BBox, iou_threshold: float) -> bool:
@@ -421,10 +427,7 @@ def classify_events(
         The events emitted for this frame.
     """
     classifier = EventClassifier(config)
-    try:
-        return classifier.classify_events(tracks, t, state)
-    except _CooldownSuppressed:  # pragma: no cover - defensive, the classifier handles it
-        return []
+    return classifier.classify_events(tracks, t, state)
 
 
 def build_event_classifier(settings=None) -> EventClassifier:  # noqa: ANN001 - avoids an import cycle

@@ -10,7 +10,6 @@ from frontend.components import (
     error_state,
     event_feed,
     severity_badge,
-    simulated_badge,
     status_card,
     threat_badge,
 )
@@ -33,7 +32,7 @@ def render() -> None:
     st.divider()
 
     try:
-        health = api_client.get_health()
+        api_client.get_health()
         protection = api_client.get_protection_status()
         incidents = api_client.get_incidents(limit=10)
         events = api_client.get_events(limit=20)

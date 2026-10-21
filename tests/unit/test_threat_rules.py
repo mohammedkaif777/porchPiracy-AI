@@ -10,7 +10,6 @@ One test per row of the rule table in ``DEVELOPMENT.md`` section 6.2:
   - authorised retrieval → no incident
 """
 
-import pytest
 
 from backend.schemas.enums import EventType, ReasonCode, Severity, ThreatLevel
 from backend.schemas.event_schema import EventCreate

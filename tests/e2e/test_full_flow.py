@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlmodel import Session
 
 from backend.core.config import get_settings
-from backend.schemas.enums import IncidentStatus, ReasonCode, SessionSource
+from backend.schemas.enums import IncidentStatus, SessionSource
 from backend.schemas.event_schema import EventCreate
 from backend.services.incident_service import IncidentService
 from backend.services.pipeline_service import ingest_event

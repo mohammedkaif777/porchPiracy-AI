@@ -20,7 +20,6 @@ def render() -> None:
     if uploaded is not None:
         # Save temporarily and upload.
         import tempfile
-        from pathlib import Path
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
             tmp.write(uploaded.getbuffer())
