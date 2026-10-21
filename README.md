@@ -230,14 +230,17 @@ RingIntegration (base)
 
 Switch modes with `RING_MODE=local|real` in `.env`.
 
-**Integration status:** `<fill in: what is connected, e.g. device status, motion/delivery events, supported actions>`
+**Integration status:** Connected via `LocalAdapter` (simulated device for local dev/demo) and `RealAdapter` (Ring API v2 endpoint integration with graceful degradation when unconfigured).
 
 **Not simulated vs simulated (be explicit):**
 
 | Capability | Status |
 |---|---|
-| `<capability 1>` | `<Real / Simulated>` |
-| `<capability 2>` | `<Real / Simulated>` |
+| Device Status (Online, Battery, Signal) | Real (API v2) / Simulated (LocalAdapter) |
+| Motion & Ring Events | Real (API v2) / Simulated (LocalAdapter) |
+| Snapshot Capture | Real (`/v2/snapshot`) |
+| Package & Person Detection | Real (Ultralytics YOLO + OpenCV, Local) |
+| Alexa Voice Deterrent | Simulated (Clearly labeled in UI & notifications) |
 
 > We only use capabilities the available Ring integration actually supports. We do not assume arbitrary video access or programmable alarms.
 
@@ -378,6 +381,6 @@ Copy `.env.example` to `.env` and adjust:
 
 ## License and acknowledgements
 
-- License: `<choose, e.g. MIT>`. Note that Ultralytics YOLO is licensed under AGPL-3.0; review this before any commercial use.
+- License: MIT License. Note that Ultralytics YOLO is licensed under AGPL-3.0; review this before any commercial use.
 - Built with FastAPI, Streamlit, OpenCV, Ultralytics YOLO, supervision, SQLModel, and Ollama.
 - Built for the Amazon AI Hackathon (Ring track).  

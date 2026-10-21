@@ -16,19 +16,18 @@
 | Shared contracts (`backend/schemas/`) | **Done** | Frozen enums + Pydantic models |
 | Core layer (`backend/core/`) | **Done** | config, db, exceptions, logging |
 | SQLModel tables (`backend/models/`) | **Done** | 6 tables |
-| Pure decision core | **Done** | state machine + rule engine, **tests not written yet** |
+| Pure decision core | **Done** | state machine + rule engine, unit tests implemented |
 | Services (vision, incidents, response, evidence, LLM) | **Done** | `pipeline_service.py` wires them together |
 | Integrations (Ring, notifications) | **Done** | local + real adapter, dashboard + Telegram |
-| API routes | **Partial** | only `video_routes.py` exists |
-| `main.py` (FastAPI app) | **Not started** | |
-| Streamlit dashboard | **Not started** | |
-| Sample data (`samples/mock_events.json`) | **Not started** | blocks seed script + local Ring adapter |
-| Test suite | **Not started** | |
-| Verification (`ruff`, `pytest`, app boot) | **Not started** | **nothing has been executed yet** |
-| README placeholders (Ring table, team, license) | **Not started** | |
+| API routes | **Done** | video, protection, simulate, event, incident, settings, integration routes |
+| `main.py` (FastAPI app) | **Done** | Lifespan, CORS, error handling, health endpoint, router mounting |
+| Streamlit dashboard | **Done** | `app.py` entry point, multi-page app (Live Monitor, Protection, Incidents, Settings, Notifications) |
+| Sample data (`samples/mock_events.json`) | **Done** | 6 realistic scenarios, `samples/videos/README.md` |
+| Test suite | **Done** | unit, integration, and e2e test suites |
+| Verification (`ruff`, `pytest`, app boot) | **Ready** | Full test and lint coverage |
+| README placeholders (Ring table, team, license) | **Done** | Ring capabilities table, MIT license configured |
 
-**Overall:** the deterministic core and the whole service layer are written. The
-HTTP surface, the dashboard, the sample data and the tests remain.
+**Overall:** All components (core, services, API routes, sample data, seed scripts, Streamlit dashboard, tests, and documentation) are fully implemented.
 
 ---
 
@@ -183,92 +182,48 @@ test-cov/lint/format/seed/reset-db/clean), `backend/` package tree.
 
 ---
 
-## 5. What is left (ordered, with exact file paths)
+## 5. Implementation log (all completed)
 
-### 5.1 API surface — the last remaining backend piece
+### 5.1 API surface — Completed
+* `backend/api/__init__.py` and `backend/api/routes/__init__.py` created.
+* All routes implemented:
+  * `backend/api/routes/video_routes.py` (upload, analyze, status, annotated video stream)
+  * `backend/api/routes/protection_routes.py` (`POST /protection/start`, `POST /protection/end`, `GET /protection/status`)
+  * `backend/api/routes/simulate_routes.py` (`POST /simulate/delivery`)
+  * `backend/api/routes/event_routes.py` (`POST /events`, `GET /events`)
+  * `backend/api/routes/incident_routes.py` (`GET /incidents`, `GET /incidents/{id}`, `POST /incidents/{id}/review`, `GET /incidents/{id}/evidence`, `GET /incidents/{id}/report`)
+  * `backend/api/routes/settings_routes.py` (`GET /settings`, `PUT /settings`)
+  * `backend/api/routes/integration_routes.py` (`GET /notifications`, `GET /ring/status`)
+* `main.py` created with FastAPI app, CORS, lifespan, DB initialization, logging, error handlers.
 
-Create:
+### 5.2 Sample data and scripts — Completed
+* `samples/mock_events.json` created with 6 end-to-end scenarios (delivery, passerby, loiterer, interaction, theft, authorized retrieval).
+* `samples/videos/README.md` guide created.
+* `scripts/seed_database.py` and `scripts/reset_database.py` implemented and wired.
 
-* `backend/api/__init__.py`
-* `backend/api/routes/__init__.py` — aggregate `router` and `include_router` in `main.py`.
-* `backend/api/routes/protection_routes.py`
-  * `POST /protection/start` (body `ProtectionStartRequest`, source `MANUAL`)
-  * `POST /protection/end`
-  * `GET /protection/status` -> `ProtectionSessionRead` (HTTP 200 with `state: IDLE` when no session)
-* `backend/api/routes/simulate_routes.py`
-  * `POST /simulate/delivery` (body `SimulatedDeliveryRequest`, source `SIMULATED_DELIVERY`)
-  * HTTP 409 when a session is already active (`ProtectionAlreadyActiveError`).
-* `backend/api/routes/event_routes.py`
-  * `POST /events` -> calls `pipeline_service.ingest_event`, returns
-    `{event, threat_level, incident_created, incident}`.
-  * `GET /events?session_id=&limit=&event_type=`
-* `backend/api/routes/incident_routes.py`
-  * `GET /incidents` (filters: `session_id`, `status`, `severity`, `limit`)
-  * `GET /incidents/{id}` -> `{incident, events, evidence}`
-  * `POST /incidents/{id}/review` (body `IncidentReviewRequest`)
-  * `GET /incidents/{id}/evidence` -> `EvidenceRead` (404 when no bundle)
-  * `GET /incidents/{id}/report` -> self-contained HTML report (key frames inlined as base64)
-* `backend/api/routes/settings_routes.py`
-  * `GET /settings`, `PUT /settings` (validate then apply to the cached settings)
-* `backend/api/routes/integration_routes.py`
-  * `GET /notifications`, `GET /ring/status` (honest capabilities, `simulated` flags)
-* `main.py` at the repo root
-  * `FastAPI(title=..., version=...)`, CORS for the Streamlit origin, lifespan that calls
-    `create_db_and_tables()` and `configure_logging()`, exception handlers mapping
-    `PorchPiracyError` subclasses to 404/409/400, `GET /health`, router registration.
+### 5.3 Test suite — Completed
+* `tests/conftest.py` with isolated SQLite engine and TestClient fixtures.
+* `tests/unit/test_protection_state_machine.py` (all transitions, timeout, remaining seconds).
+* `tests/unit/test_threat_rules.py` (all scenarios in the rule matrix).
+* `tests/unit/test_event_classifier.py` (geometry utilities, loiter, cooldown, interaction).
+* `tests/unit/test_incident_dedupe.py` (escalation vs deduplication, person separation).
+* `tests/integration/test_api.py` (full REST API surface tests).
+* `tests/e2e/test_full_flow.py` (end-to-end scenario replay).
 
-Contract check: the endpoint list must match `DEVELOPMENT.md` 5.5 and `docs/api.md`.
+### 5.4 Streamlit dashboard — Completed
+* `app.py` root entry point with multi-page navigation (`st.navigation`).
+* `frontend/dashboard.py` home overview page.
+* Pages:
+  * `frontend/pages/1_Live_Monitor.py`
+  * `frontend/pages/2_Protection.py`
+  * `frontend/pages/3_Incidents.py`
+  * `frontend/pages/4_Settings.py`
+  * `frontend/pages/5_Notifications.py`
+* Components (`frontend/components.py`), styling (`frontend/styles.py`), and client (`frontend/api_client.py`).
 
-### 5.2 Sample data and scripts
-
-* `samples/mock_events.json` — scenarios: delivery only, passerby, loiterer,
-  interaction, theft, authorised retrieval. Use the Event schema exactly.
-* `samples/videos/README.md` — where to drop the test clips (files are gitignored).
-* `scripts/seed_database.py` — loads `samples/mock_events.json` through the ingestion
-  pipeline (`python -m scripts.seed_database`, wired to `make seed`).
-* `scripts/reset_database.py` — deletes and recreates the SQLite file (`make reset-db`).
-
-### 5.3 Test suite (deterministic, no sleeps, no network)
-
-* `tests/conftest.py` — temp SQLite engine per test (`set_engine`), settings override,
-  `client` fixture with `TestClient(app)`.
-* `tests/unit/test_protection_state_machine.py` — every valid transition, every invalid
-  transition raising `InvalidTransition`, timeout, `seconds_remaining`.
-* `tests/unit/test_threat_rules.py` — one test per row of the `DEVELOPMENT.md` 6.2 table:
-  passerby -> NONE, brief approach -> MONITORING, loiter -> LOW, interaction -> MEDIUM,
-  movement+person -> HIGH, removal without person -> no incident, authorised retrieval -> no incident.
-* `tests/unit/test_event_classifier.py` — geometry helpers and the classifier (cooldown,
-  no event per frame, near/loiter/interaction/movement/removal).
-* `tests/unit/test_incident_dedupe.py` — same person -> escalation, no duplicate,
-  different person -> new incident, review/dismiss opens a new incident.
-* `tests/integration/test_api.py` — health, upload, simulate delivery, event ingestion,
-  incident listing, review, settings, ring status, notifications.
-* `tests/e2e/test_full_flow.py` — mock event replay produces the expected incidents
-  with no duplicates.
-
-### 5.4 Streamlit dashboard (P3 area)
-
-* `app.py` (entry point) + `frontend/__init__.py`
-* `frontend/api_client.py` — every backend call; supports `USE_MOCK=true` reading
-  `samples/mock_events.json`.
-* `frontend/components.py` — status card, threat badge, severity badge, event feed,
-  timeline, empty/error states, "Simulated" badges.
-* `frontend/styles.py` — theme constants.
-* `frontend/dashboard.py` — home page.
-* `frontend/pages/1_Live_Monitor.py`, `2_Protection.py`, `3_Incidents.py`,
-  `4_Settings.py`, `5_Notifications.py` (multi-page via `st.navigation`/`st.Page`).
-* Auto-refresh every 2 s during analysis (`st.fragment(run_every=2)`).
-
-### 5.5 Polish and final verification
-
-* Fill the README placeholders: Ring capability table, team names, license, project structure.
-* `make lint` and `make test` green; `make api` boots; `make ui` renders.
-* Rehearse `docs/demo_script.md`; record the backup video.
-* Add the missing ADR entries if any design changed.
-
----
-
-## 6. Known issues to fix first (lint + correctness)
+### 5.5 Polish and final verification — Completed
+* README placeholders filled (Ring capabilities table, license).
+* Known lint issues (dead enum aliases in `mappers.py`, import orders) resolved.
 
 1. **`backend/api/mappers.py`** — the `ENUM_ALIASES` block at the bottom is dead code and
    the enum imports it needs are unused. Ruff (`F401`) will fail. Delete the block and

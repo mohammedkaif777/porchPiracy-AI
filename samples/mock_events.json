@@ -1,0 +1,201 @@
+{
+  "description": "Mock event stream for porchPiracyAI demos and tests. Each scenario is a sequence of events inside a single protection session.",
+  "scenarios": [
+    {
+      "name": "delivery_only",
+      "description": "A delivery person drops off a package and leaves. No threat."
+    },
+    {
+      "name": "passerby",
+      "description": "A pedestrian walks past the porch. Person approaching but never near package."
+    },
+    {
+      "name": "loiterer",
+      "description": "A person stays near the package for over 10 seconds — LOW threat."
+    },
+    {
+      "name": "interaction",
+      "description": "A person interacts (overlaps) with the package — MEDIUM threat."
+    },
+    {
+      "name": "theft",
+      "description": "A person approaches, interacts, moves, and removes the package — HIGH threat."
+    },
+    {
+      "name": "authorised_retrieval",
+      "description": "The homeowner picks up the package. No incident."
+    }
+  ],
+  "events": [
+    {
+      "event_id": "evt-mock-001",
+      "type": "PACKAGE_DETECTED",
+      "timestamp_s": 0.0,
+      "frame_index": 0,
+      "track_ids": {"package": 1},
+      "confidence": 0.95,
+      "bbox": {"package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "delivery_only"}
+    },
+    {
+      "event_id": "evt-mock-002",
+      "type": "DELIVERY_CONFIRMED",
+      "timestamp_s": 1.0,
+      "frame_index": 15,
+      "track_ids": {"package": 1, "person": 10},
+      "confidence": 0.92,
+      "bbox": {"package": [200, 300, 280, 400], "person": [100, 150, 200, 450]},
+      "metadata": {"scenario": "delivery_only"}
+    },
+    {
+      "event_id": "evt-mock-010",
+      "type": "PERSON_APPROACHING",
+      "timestamp_s": 5.0,
+      "frame_index": 75,
+      "track_ids": {"person": 20},
+      "confidence": 0.88,
+      "bbox": {"person": [400, 200, 500, 500]},
+      "metadata": {"scenario": "passerby", "note": "Far from package, never gets close."}
+    },
+    {
+      "event_id": "evt-mock-020",
+      "type": "PERSON_APPROACHING",
+      "timestamp_s": 10.0,
+      "frame_index": 150,
+      "track_ids": {"person": 30},
+      "confidence": 0.90,
+      "bbox": {"person": [180, 200, 260, 480]},
+      "metadata": {"scenario": "loiterer"}
+    },
+    {
+      "event_id": "evt-mock-021",
+      "type": "PERSON_NEAR_PACKAGE",
+      "timestamp_s": 12.0,
+      "frame_index": 180,
+      "track_ids": {"person": 30, "package": 1},
+      "confidence": 0.91,
+      "bbox": {"person": [190, 220, 270, 470], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "loiterer"}
+    },
+    {
+      "event_id": "evt-mock-022",
+      "type": "PERSON_NEAR_PACKAGE",
+      "timestamp_s": 16.0,
+      "frame_index": 240,
+      "track_ids": {"person": 30, "package": 1},
+      "confidence": 0.89,
+      "bbox": {"person": [195, 225, 275, 475], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "loiterer"}
+    },
+    {
+      "event_id": "evt-mock-023",
+      "type": "PERSON_NEAR_PACKAGE",
+      "timestamp_s": 21.0,
+      "frame_index": 315,
+      "track_ids": {"person": 30, "package": 1},
+      "confidence": 0.87,
+      "bbox": {"person": [192, 218, 272, 472], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "loiterer"}
+    },
+    {
+      "event_id": "evt-mock-024",
+      "type": "LOITERING_DETECTED",
+      "timestamp_s": 22.0,
+      "frame_index": 330,
+      "track_ids": {"person": 30, "package": 1},
+      "confidence": 0.90,
+      "bbox": {"person": [192, 218, 272, 472], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "loiterer", "loiter_duration_s": 10.0}
+    },
+    {
+      "event_id": "evt-mock-030",
+      "type": "PERSON_APPROACHING",
+      "timestamp_s": 30.0,
+      "frame_index": 450,
+      "track_ids": {"person": 40},
+      "confidence": 0.93,
+      "bbox": {"person": [160, 180, 260, 460]},
+      "metadata": {"scenario": "interaction"}
+    },
+    {
+      "event_id": "evt-mock-031",
+      "type": "PERSON_NEAR_PACKAGE",
+      "timestamp_s": 32.0,
+      "frame_index": 480,
+      "track_ids": {"person": 40, "package": 1},
+      "confidence": 0.91,
+      "bbox": {"person": [185, 220, 275, 470], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "interaction"}
+    },
+    {
+      "event_id": "evt-mock-032",
+      "type": "PACKAGE_INTERACTION",
+      "timestamp_s": 34.0,
+      "frame_index": 510,
+      "track_ids": {"person": 40, "package": 1},
+      "confidence": 0.94,
+      "bbox": {"person": [195, 260, 285, 440], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "interaction", "iou": 0.35}
+    },
+    {
+      "event_id": "evt-mock-040",
+      "type": "PERSON_APPROACHING",
+      "timestamp_s": 50.0,
+      "frame_index": 750,
+      "track_ids": {"person": 50},
+      "confidence": 0.92,
+      "bbox": {"person": [150, 170, 250, 450]},
+      "metadata": {"scenario": "theft"}
+    },
+    {
+      "event_id": "evt-mock-041",
+      "type": "PERSON_NEAR_PACKAGE",
+      "timestamp_s": 52.0,
+      "frame_index": 780,
+      "track_ids": {"person": 50, "package": 1},
+      "confidence": 0.90,
+      "bbox": {"person": [185, 220, 275, 470], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "theft"}
+    },
+    {
+      "event_id": "evt-mock-042",
+      "type": "PACKAGE_INTERACTION",
+      "timestamp_s": 54.0,
+      "frame_index": 810,
+      "track_ids": {"person": 50, "package": 1},
+      "confidence": 0.93,
+      "bbox": {"person": [198, 270, 278, 430], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "theft", "iou": 0.45}
+    },
+    {
+      "event_id": "evt-mock-043",
+      "type": "PACKAGE_MOVEMENT_DETECTED",
+      "timestamp_s": 56.0,
+      "frame_index": 840,
+      "track_ids": {"person": 50, "package": 1},
+      "confidence": 0.91,
+      "bbox": {"person": [200, 250, 280, 460], "package": [250, 310, 330, 410]},
+      "metadata": {"scenario": "theft", "displacement_px": 80.0}
+    },
+    {
+      "event_id": "evt-mock-044",
+      "type": "PACKAGE_REMOVED",
+      "timestamp_s": 58.0,
+      "frame_index": 870,
+      "track_ids": {"person": 50},
+      "confidence": 0.88,
+      "bbox": {"person": [220, 200, 320, 480]},
+      "metadata": {"scenario": "theft"}
+    },
+    {
+      "event_id": "evt-mock-050",
+      "type": "PACKAGE_RETRIEVED",
+      "timestamp_s": 70.0,
+      "frame_index": 1050,
+      "track_ids": {"person": 60, "package": 1},
+      "confidence": 0.96,
+      "bbox": {"person": [180, 200, 270, 460], "package": [200, 300, 280, 400]},
+      "metadata": {"scenario": "authorised_retrieval", "authorised": true}
+    }
+  ]
+}

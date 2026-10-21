@@ -25,8 +25,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from backend.schemas.enums import EventType, ReasonCode, Severity, ThreatLevel
-from backend.schemas.incident_schema import ThreatAssessment
 from backend.schemas.event_schema import EventCreate
+from backend.schemas.incident_schema import ThreatAssessment
 
 #: Event types that can contribute to a threat assessment.
 THREAT_EVENT_TYPES: frozenset[EventType] = frozenset(
