@@ -206,7 +206,9 @@ for events observed before protection started.
 
 ### `GET /events`
 
-Query parameters: `session_id` (optional), `limit` (default 200), `event_type` (optional).
+Query parameters: `session_id` (optional), `video_id` (optional), `limit` (default 200),
+`event_type` (optional). Filters combine when supplied together. The Live Monitor
+uses `video_id` to exclude historical, manually submitted, and other-upload events.
 
 **200 OK** — array of events, newest first.
 

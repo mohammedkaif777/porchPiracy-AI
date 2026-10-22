@@ -4,6 +4,9 @@ Uses TestClient, no real network, no sleeps.
 """
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session
+
+from backend.models.event import Event
 
 
 class TestHealth:
@@ -105,6 +108,27 @@ class TestEvents:
         response = client.get("/events")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
+
+    def test_video_filter_excludes_other_uploads_and_unlinked_events(
+        self, client: TestClient, session: Session
+    ) -> None:
+        for event_id, video_id in (("selected", "video-a"), ("other", "video-b"), ("old", None)):
+            session.add(
+                Event(
+                    event_id=event_id,
+                    video_id=video_id,
+                    type="PERSON_NEAR_PACKAGE",
+                    timestamp_s=10.0,
+                    confidence=0.9,
+                )
+            )
+        session.commit()
+
+        response = client.get("/events", params={"video_id": "video-a"})
+        assert response.status_code == 200
+        assert [event["event_id"] for event in response.json()] == ["selected"]
+        assert client.get("/events", params={"video_id": "no-events"}).json() == []
+        assert len(client.get("/events").json()) == 3
 
 
 class TestIncidents:

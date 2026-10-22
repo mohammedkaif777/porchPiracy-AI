@@ -33,6 +33,16 @@ def render() -> None:
             error_state(str(exc))
 
     st.divider()
+
+    @st.fragment(run_every=2)
+    def _monitor() -> None:
+        _render_video_monitor()
+
+    _monitor()
+
+
+def _render_video_monitor() -> None:
+    """Refresh video status and show only events belonging to the selected upload."""
     st.subheader("Recent Videos")
     try:
         videos = api_client.get_videos(limit=10)
@@ -40,17 +50,22 @@ def render() -> None:
         error_state(str(exc))
         videos = []
 
-    analyzing = False
     if videos:
         for video in videos:
             status = video.get("status", "")
             progress = float(video.get("progress") or 0)
             st.markdown(f"**{video.get('filename', 'unknown')}** — {status} ({progress:.0%})")
+            if status == "FAILED":
+                st.error(video.get("error") or "Analysis failed. No failure details were returned.")
             if status == "ANALYZING":
-                analyzing = True
                 st.progress(min(max(progress, 0.0), 1.0))
             video_id = video.get("video_id")
-            if status == "UPLOADED" and video_id and st.button("Analyze", key=f"an-{video_id}"):
+            label = "Retry analysis" if status == "FAILED" else "Analyze"
+            if (
+                status in {"UPLOADED", "FAILED"}
+                and video_id
+                and st.button(label, key=f"an-{video_id}")
+            ):
                 try:
                     api_client.analyze_video(str(video_id))
                     st.rerun()
@@ -58,22 +73,35 @@ def render() -> None:
                     error_state(str(exc))
     else:
         empty_state("No Videos", "Upload a video to get started.")
+        return
 
-    run_every = 2 if analyzing else None
-
-    @st.fragment(run_every=run_every)
-    def _events() -> None:
-        st.subheader("Event Stream")
-        try:
-            events = api_client.get_events(limit=50)
+    by_id = {str(video["video_id"]): video for video in videos}
+    selected_id = st.selectbox(
+        "Video to inspect",
+        options=list(by_id),
+        format_func=lambda value: f"{by_id[value]['filename']} ({value[:8]})",
+        key="monitor_video_id",
+    )
+    st.subheader("Event Stream")
+    st.caption("Events from the selected video only.")
+    try:
+        events = api_client.get_events(limit=50, video_id=selected_id)
+        if api_client.using_mock():
+            st.warning(
+                "The backend is unavailable or demo mode is enabled. Video detections are unavailable."
+            )
+            return
+        selected = by_id[selected_id]
+        if selected.get("status") == "FAILED":
+            st.warning("Analysis failed. Any events below are partial results from this video.")
+        if events:
             event_feed(events, max_items=30)
-            if events:
-                st.subheader("Event Timeline")
-                timeline(events)
-        except Exception as exc:
-            error_state(str(exc))
-
-    _events()
+            st.subheader("Event Timeline")
+            timeline(events)
+        else:
+            st.info("No detection events recorded for this video.")
+    except Exception as exc:
+        error_state(str(exc))
 
 
 render()

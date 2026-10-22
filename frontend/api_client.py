@@ -111,11 +111,18 @@ def simulate_delivery(body: dict | None = None) -> dict:
     return _post("/simulate/delivery", body or {})
 
 
-def get_events(session_id: str | None = None, limit: int = 100) -> list[dict]:
+def get_events(
+    session_id: str | None = None, limit: int = 100, video_id: str | None = None
+) -> list[dict]:
     params: dict = {"limit": limit}
     if session_id:
         params["session_id"] = session_id
+    if video_id:
+        params["video_id"] = video_id
     result = _get("/events", params=params)
+    if video_id and _USE_MOCK:
+        # Sample events have no connection to an uploaded video.
+        return []
     return result if isinstance(result, list) else []
 
 

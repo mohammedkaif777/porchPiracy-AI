@@ -50,6 +50,7 @@ def create_event(
 def list_events(
     session: Session = Depends(db_session),
     session_id: str | None = Query(default=None),
+    video_id: str | None = Query(default=None),
     event_type: EventType | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> list[EventRead]:
@@ -57,6 +58,8 @@ def list_events(
     statement = select(Event)
     if session_id:
         statement = statement.where(Event.session_id == session_id)
+    if video_id:
+        statement = statement.where(Event.video_id == video_id)
     if event_type:
         statement = statement.where(Event.type == event_type.value)
     statement = statement.order_by(Event.created_at.desc()).limit(limit)  # type: ignore[union-attr]
