@@ -5,7 +5,7 @@ Frozen contract, see ``DEVELOPMENT.md`` section 5.4.
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from backend.schemas.enums import ProtectionState, SessionSource, ThreatLevel
 

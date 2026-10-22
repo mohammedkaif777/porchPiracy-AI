@@ -14,7 +14,6 @@ Person detection uses a COCO YOLO model (class ``person``). There is no
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 

@@ -83,7 +83,7 @@ class TrackingService:
             return []
 
         xyxy = np.array([detection.bbox for detection in detections], dtype=float)
-        class_id = np.array([CLASS_IDS.get(d.cls, 0) for detection in detections], dtype=int)
+        class_id = np.array([CLASS_IDS.get(detection.cls, 0) for detection in detections], dtype=int)
         confidence = np.array([detection.confidence for detection in detections], dtype=float)
 
         sv_detections = Detections(xyxy=xyxy, class_id=class_id, confidence=confidence)

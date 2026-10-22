@@ -1,6 +1,6 @@
 """SQLModel table for the protection session."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlmodel import Field, SQLModel

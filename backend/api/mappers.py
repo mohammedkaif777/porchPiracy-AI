@@ -7,17 +7,7 @@ from backend.models.incident import Incident
 from backend.models.notification import Notification
 from backend.models.protection_session import ProtectionSession
 from backend.models.video import Video
-from backend.schemas.enums import (
-    IncidentStatus,
-    NotificationChannel,
-    PackageStatus,
-    ProtectionState,
-    ReasonCode,
-    SessionSource,
-    Severity,
-    ThreatLevel,
-    VideoStatus,
-)
+from backend.schemas.enums import ReasonCode
 from backend.schemas.event_schema import EventCreate, EventRead
 from backend.schemas.incident_schema import IncidentRead
 from backend.schemas.package_schema import PackageRead
@@ -152,14 +142,3 @@ __all__ = [
     "video_to_schema",
 ]
 
-# Re-exported for convenience so route modules import from a single place.
-ENUM_ALIASES = {
-    "IncidentStatus": IncidentStatus,
-    "NotificationChannel": NotificationChannel,
-    "PackageStatus": PackageStatus,
-    "ProtectionState": ProtectionState,
-    "SessionSource": SessionSource,
-    "Severity": Severity,
-    "ThreatLevel": ThreatLevel,
-    "VideoStatus": VideoStatus,
-}
