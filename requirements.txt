@@ -19,7 +19,7 @@ python-dotenv>=1.0
 numpy>=1.26
 
 # --- Dashboard ---
-streamlit>=1.35
+streamlit>=1.36
 streamlit-autorefresh>=1.0.1
 
 # --- Vision pipeline (optional heavy extras) ---

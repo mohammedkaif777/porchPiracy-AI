@@ -17,6 +17,7 @@ from frontend.styles import GLOBAL_CSS
 def render() -> None:
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
     st.header("🚨 Incidents")
+    st.caption("Wording is always “potential package theft, for review” — never “thief detected”.")
 
     try:
         incidents = api_client.get_incidents(limit=50)
@@ -68,6 +69,17 @@ def render() -> None:
                         st.rerun()
                     except Exception as exc:
                         st.error(str(exc))
+            try:
+                report_html = api_client.get_report(incident_id)
+                st.download_button(
+                    "Export evidence report",
+                    data=report_html,
+                    file_name=f"incident-{incident_id[:8]}.html",
+                    mime="text/html",
+                    key=f"report-{incident_id}",
+                )
+            except Exception as exc:
+                st.caption(str(exc))
 
 
 render()

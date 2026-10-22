@@ -8,12 +8,9 @@ from sqlmodel import Session
 from backend.api.dependencies import app_settings, db_session
 from backend.api.mappers import notification_to_schema
 from backend.core.config import Settings
-from backend.core.logging_config import get_logger
 from backend.integrations.notifications.dashboard_notifier import DashboardNotifier
-from backend.integrations.ring.local_adapter import LocalAdapter
+from backend.integrations.ring import get_ring_integration
 from backend.schemas.system_schema import NotificationRead, RingCapability, RingStatus
-
-logger = get_logger(__name__)
 
 router = APIRouter(tags=["integrations"])
 
@@ -33,41 +30,31 @@ def list_notifications(
 @router.get("/ring/status", response_model=RingStatus)
 def ring_status(settings: Settings = Depends(app_settings)) -> RingStatus:
     """Return the honest status of the Ring integration."""
-    if settings.ring_mode == "real":
-        try:
-            from backend.integrations.ring.adapter import RealAdapter  # noqa: PLC0415
-
-            adapter = RealAdapter(settings)
-        except Exception:
-            adapter = LocalAdapter(settings)  # type: ignore[assignment]
+    adapter = get_ring_integration()
+    device_status = adapter.get_device_status()
+    configured = bool(getattr(adapter, "configured", True))
+    if adapter.simulated:
+        message = "Running on the local development adapter. No Ring device is connected."
+    elif not configured:
+        message = "RING_TOKEN is not set. The real adapter is selected but not connected."
+    elif device_status.online:
+        message = f"Connected to {device_status.name}."
     else:
-        adapter = LocalAdapter(settings)  # type: ignore[assignment]
-
-    connected = adapter.is_connected()
-    device = None
-    if connected:
-        try:
-            device = adapter.get_device_status().to_dict()
-        except Exception:
-            pass
-
-    caps = adapter.capabilities()
+        detail = device_status.raw.get("error") if isinstance(device_status.raw, dict) else None
+        message = str(detail or "Ring adapter selected but the device is offline.")
     return RingStatus(
         mode=settings.ring_mode,
         adapter=adapter.name,
-        connected=connected,
+        connected=bool(device_status.online),
         simulated=adapter.simulated,
         capabilities=[
             RingCapability(
-                name=str(cap["name"]),
+                name=str(cap.get("name")),
                 supported=bool(cap.get("supported", False)),
                 simulated=bool(cap.get("simulated", True)),
             )
-            for cap in caps
+            for cap in adapter.capabilities()
         ],
-        device=device,
-        message=(
-            f"Ring integration is running in {settings.ring_mode} mode "
-            f"via the {adapter.name}."
-        ),
+        device=device_status.to_dict(),
+        message=message,
     )

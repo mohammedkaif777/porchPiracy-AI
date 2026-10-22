@@ -56,7 +56,11 @@ ACTIVE_STATES: frozenset[ProtectionState] = frozenset(
 
 #: States that end a session.
 TERMINAL_STATES: frozenset[ProtectionState] = frozenset(
-    {ProtectionState.PROTECTION_ENDED, ProtectionState.PACKAGE_RETRIEVED, ProtectionState.PROTECTION_TIMEOUT}
+    {
+        ProtectionState.PROTECTION_ENDED,
+        ProtectionState.PACKAGE_RETRIEVED,
+        ProtectionState.PROTECTION_TIMEOUT,
+    }
 )
 
 #: The transition table. Anything not listed here is an invalid transition.
@@ -150,6 +154,7 @@ class ProtectionSessionManager:
     """DB-backed session manager built on top of the pure state machine."""
 
     def __init__(self, session: Session, timeout_minutes: int = 360) -> None:
+        """Bind the manager to a database session and a timeout."""
         self._session = session
         self._timeout_minutes = timeout_minutes
 
@@ -234,6 +239,31 @@ class ProtectionSessionManager:
         )
         return record
 
+    def start_and_activate(
+        self,
+        source: SessionSource = SessionSource.MANUAL,
+        package_track_id: int | None = None,
+        protection_zone: list[list[float]] | None = None,
+        now: datetime | None = None,
+        video_id: str | None = None,
+    ) -> ProtectionSession:
+        """Start a session and immediately enter ``PROTECTION_ACTIVE``.
+
+        Delivery and manual start land on ``PACKAGE_DETECTED``; the API contract
+        (and the dashboard) treat a successful start as protection already on.
+        """
+        reference = now or datetime.now(UTC)
+        record = self.start_session(
+            source=source,
+            package_track_id=package_track_id,
+            protection_zone=protection_zone,
+            now=reference,
+            video_id=video_id,
+        )
+        if can_transition(ProtectionState(record.state), RuleTrigger.PROTECTION_ACTIVATED):
+            record = self.apply_trigger(RuleTrigger.PROTECTION_ACTIVATED, reference, record)
+        return record
+
     def apply_trigger(
         self,
         trigger: RuleTrigger,
@@ -303,7 +333,9 @@ class ProtectionSessionManager:
         closed = self.apply_trigger(RuleTrigger.TIMEOUT_ELAPSED, reference, target)
         return self.apply_trigger(RuleTrigger.MANUAL_END, reference, closed)
 
-    def set_threat_level(self, level: ThreatLevel, session: ProtectionSession | None = None) -> None:
+    def set_threat_level(
+        self, level: ThreatLevel, session: ProtectionSession | None = None
+    ) -> None:
         """Persist the current threat level on the session."""
         target = session or self.get_active_session()
         if target is None:

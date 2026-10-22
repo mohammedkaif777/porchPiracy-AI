@@ -2,40 +2,37 @@
 
 from __future__ import annotations
 
+import ast
 import base64
+import html
 import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
-from sqlmodel import Session
 
-from backend.api.dependencies import app_settings, db_session
+from backend.api.dependencies import incident_service
 from backend.api.mappers import event_to_schema, incident_to_schema
-from backend.core.config import Settings
 from backend.core.exceptions import NotFoundError
-from backend.core.logging_config import get_logger
+from backend.models.event import Event
+from backend.models.incident import Incident
 from backend.schemas.enums import IncidentStatus, Severity
 from backend.schemas.incident_schema import IncidentDetail, IncidentRead, IncidentReviewRequest
 from backend.schemas.system_schema import EvidenceKeyFrame, EvidenceRead
 from backend.services.incident_service import IncidentService
-
-logger = get_logger(__name__)
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
 @router.get("", response_model=list[IncidentRead])
 def list_incidents(
-    session: Session = Depends(db_session),
-    settings: Settings = Depends(app_settings),
+    service: IncidentService = Depends(incident_service),
     session_id: str | None = Query(default=None),
     status: IncidentStatus | None = Query(default=None),
     severity: Severity | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[IncidentRead]:
     """List incidents, newest first, with optional filters."""
-    service = IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
     records = service.list_incidents(
         session_id=session_id,
         status=status,
@@ -48,18 +45,16 @@ def list_incidents(
 @router.get("/{incident_id}", response_model=IncidentDetail)
 def get_incident(
     incident_id: str,
-    session: Session = Depends(db_session),
-    settings: Settings = Depends(app_settings),
+    service: IncidentService = Depends(incident_service),
 ) -> IncidentDetail:
     """Return a single incident with its triggering events and evidence."""
-    service = IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
     incident = service.get_incident(incident_id)
     events = service.get_events(incident)
-    evidence = _load_evidence(incident.evidence_path)
+    evidence = evidence_from_incident(incident)
     return IncidentDetail(
         incident=incident_to_schema(incident),
         events=[event_to_schema(event).model_dump(mode="json") for event in events],
-        evidence=evidence,
+        evidence=evidence.model_dump(mode="json") if evidence else None,
     )
 
 
@@ -67,11 +62,9 @@ def get_incident(
 def review_incident(
     incident_id: str,
     body: IncidentReviewRequest,
-    session: Session = Depends(db_session),
-    settings: Settings = Depends(app_settings),
+    service: IncidentService = Depends(incident_service),
 ) -> IncidentRead:
-    """Mark an incident as reviewed or dismissed."""
-    service = IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
+    """Mark an incident as reviewed or dismissed. Does not end protection."""
     record = service.review(incident_id, body.status, body.note)
     return incident_to_schema(record)
 
@@ -79,112 +72,165 @@ def review_incident(
 @router.get("/{incident_id}/evidence", response_model=EvidenceRead)
 def incident_evidence(
     incident_id: str,
-    session: Session = Depends(db_session),
-    settings: Settings = Depends(app_settings),
+    service: IncidentService = Depends(incident_service),
 ) -> EvidenceRead:
     """Return the evidence bundle for an incident."""
-    service = IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
     incident = service.get_incident(incident_id)
-    if not incident.evidence_path:
+    evidence = evidence_from_incident(incident)
+    if evidence is None:
         raise NotFoundError("Evidence", incident_id)
-    evidence_dir = Path(incident.evidence_path)
-    meta_path = evidence_dir / "metadata.json"
-    metadata: dict = {}
-    if meta_path.is_file():
-        metadata = json.loads(meta_path.read_text(encoding="utf-8"))
-
-    key_frames: list[EvidenceKeyFrame] = []
-    frames_dir = evidence_dir / "key_frames"
-    if frames_dir.is_dir():
-        for frame_path in sorted(frames_dir.iterdir()):
-            if frame_path.suffix.lower() in {".jpg", ".png", ".webp"}:
-                key_frames.append(
-                    EvidenceKeyFrame(
-                        path=str(frame_path),
-                        timestamp_s=metadata.get("start_s", 0.0),
-                        label=frame_path.stem,
-                    )
-                )
-
-    clip_path = metadata.get("clip_path")
-    return EvidenceRead(
-        incident_id=incident_id,
-        clip_path=clip_path,
-        clip_start_s=metadata.get("clip_start_s"),
-        clip_end_s=metadata.get("clip_end_s"),
-        key_frames=key_frames,
-        faces_blurred=metadata.get("faces_blurred", False),
-        metadata=metadata,
-    )
+    return evidence
 
 
 @router.get("/{incident_id}/report", response_class=HTMLResponse)
 def incident_report(
     incident_id: str,
-    session: Session = Depends(db_session),
-    settings: Settings = Depends(app_settings),
+    service: IncidentService = Depends(incident_service),
 ) -> str:
     """Return a self-contained HTML report with key frames inlined as base64."""
-    service = IncidentService(session, cooldown_seconds=settings.incident_cooldown_seconds)
     incident = service.get_incident(incident_id)
     events = service.get_events(incident)
+    evidence = evidence_from_incident(incident)
+    return _render_report(incident, events, evidence)
 
-    frames_html = ""
+
+def evidence_from_incident(incident: Incident) -> EvidenceRead | None:
+    """Build an evidence payload from stored metadata or files next to the clip."""
+    data = _parse_metadata(incident.evidence_metadata)
+    bundle_dir = _bundle_dir(incident.evidence_path)
+    if data is None and bundle_dir is not None:
+        meta_path = bundle_dir / "metadata.json"
+        if meta_path.is_file():
+            data = _parse_metadata(meta_path.read_text(encoding="utf-8"))
+
+    if isinstance(data, dict) and (data.get("clip_path") or data.get("key_frames")):
+        frames = [
+            EvidenceKeyFrame(
+                path=str(frame.get("path", "")),
+                timestamp_s=float(frame.get("timestamp_s") or 0.0),
+                label=str(frame.get("label") or "key_frame"),
+            )
+            for frame in data.get("key_frames") or []
+            if isinstance(frame, dict)
+        ]
+        if not frames and bundle_dir is not None:
+            frames = _frames_from_dir(bundle_dir)
+        return EvidenceRead(
+            incident_id=incident.incident_id,
+            clip_path=data.get("clip_path") or incident.evidence_path,
+            clip_start_s=data.get("clip_start_s"),
+            clip_end_s=data.get("clip_end_s"),
+            key_frames=frames,
+            faces_blurred=bool(data.get("faces_blurred")),
+            metadata=dict(data.get("metadata") or {}),
+        )
+
     if incident.evidence_path:
-        frames_dir = Path(incident.evidence_path) / "key_frames"
-        if frames_dir.is_dir():
-            for frame_path in sorted(frames_dir.iterdir()):
-                if frame_path.suffix.lower() in {".jpg", ".png", ".webp"}:
-                    data = base64.b64encode(frame_path.read_bytes()).decode()
-                    mime = "image/jpeg" if frame_path.suffix.lower() == ".jpg" else "image/png"
-                    frames_html += (
-                        f'<div style="margin:8px 0;">'
-                        f'<img src="data:{mime};base64,{data}" '
-                        f'style="max-width:640px;border-radius:8px;" />'
-                        f'<p style="color:#666;font-size:0.85em;">{frame_path.name}</p>'
-                        f'</div>'
-                    )
-
-    events_html = ""
-    for event in events:
-        events_html += f"<tr><td>{event.type}</td><td>{event.timestamp_s:.2f}s</td><td>{event.confidence:.2f}</td></tr>"
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Incident Report – {incident_id[:8]}</title>
-<style>
-  body {{ font-family: system-ui, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; }}
-  h1 {{ color: #d32f2f; }} table {{ width: 100%; border-collapse: collapse; margin: 1em 0; }}
-  th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-  th {{ background: #f5f5f5; }} .badge {{ display: inline-block; padding: 4px 12px;
-  border-radius: 12px; font-weight: 600; font-size: 0.85em; }}
-  .HIGH {{ background: #ffcdd2; color: #b71c1c; }}
-  .MEDIUM {{ background: #fff3e0; color: #e65100; }}
-  .LOW {{ background: #e8f5e9; color: #2e7d32; }}
-</style></head>
-<body>
-<h1>🛡️ Incident Report</h1>
-<p><strong>ID:</strong> {incident.incident_id}</p>
-<p><strong>Session:</strong> {incident.session_id or 'N/A'}</p>
-<p><strong>Severity:</strong> <span class="badge {incident.severity}">{incident.severity}</span></p>
-<p><strong>Status:</strong> {incident.status}</p>
-<p><strong>Reasons:</strong> {', '.join(incident.reason_codes)}</p>
-<p><strong>Time span:</strong> {incident.start_s:.2f}s – {incident.end_s:.2f}s</p>
-{f'<p><strong>Explanation:</strong> {incident.explanation}</p>' if incident.explanation else ''}
-<h2>Events</h2>
-<table><thead><tr><th>Type</th><th>Time</th><th>Confidence</th></tr></thead>
-<tbody>{events_html}</tbody></table>
-<h2>Key Frames</h2>
-{frames_html if frames_html else '<p style="color:#999;">No key frames available.</p>'}
-<hr><p style="color:#999;font-size:0.8em;">Generated by porchPiracyAI</p>
-</body></html>"""
+        frames = _frames_from_dir(bundle_dir) if bundle_dir else []
+        return EvidenceRead(
+            incident_id=incident.incident_id,
+            clip_path=incident.evidence_path,
+            key_frames=frames,
+        )
+    return None
 
 
-def _load_evidence(evidence_path: str | None) -> dict | None:
-    """Load evidence metadata from the evidence bundle directory."""
+def _bundle_dir(evidence_path: str | None) -> Path | None:
+    """Return the directory that holds clip, metadata and key frames."""
     if not evidence_path:
         return None
-    meta = Path(evidence_path) / "metadata.json"
-    if meta.is_file():
-        return json.loads(meta.read_text(encoding="utf-8"))
-    return {"path": evidence_path}
+    path = Path(evidence_path)
+    if path.is_dir():
+        return path
+    if path.is_file():
+        return path.parent
+    return path.parent if path.suffix else path
+
+
+def _frames_from_dir(bundle_dir: Path) -> list[EvidenceKeyFrame]:
+    """Collect image files from a key_frames folder or the bundle directory."""
+    frames_dir = bundle_dir / "key_frames"
+    search = frames_dir if frames_dir.is_dir() else bundle_dir
+    frames: list[EvidenceKeyFrame] = []
+    if not search.is_dir():
+        return frames
+    for frame_path in sorted(search.iterdir()):
+        if frame_path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
+            frames.append(
+                EvidenceKeyFrame(path=str(frame_path), timestamp_s=0.0, label=frame_path.stem)
+            )
+    return frames
+
+
+def _parse_metadata(raw: str | dict | None) -> dict | None:
+    """Parse evidence metadata stored as JSON, a dict, or a Python literal."""
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        try:
+            parsed = ast.literal_eval(raw)
+        except (ValueError, SyntaxError):
+            return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _render_report(
+    incident: Incident,
+    events: list[Event],
+    evidence: EvidenceRead | None,
+) -> str:
+    """Return a single-file HTML report. User-controlled fields are escaped."""
+    incident_id = html.escape(incident.incident_id)
+    reasons = ", ".join(html.escape(code) for code in incident.reason_codes or [])
+    explanation = html.escape(incident.explanation or "")
+    events_html = "".join(
+        "<tr>"
+        f"<td>{html.escape(str(event.type))}</td>"
+        f"<td>{event.timestamp_s:.2f}s</td>"
+        f"<td>{event.confidence:.2f}</td>"
+        "</tr>"
+        for event in events
+    )
+    frames_html = ""
+    if evidence:
+        for frame in evidence.key_frames:
+            path = Path(frame.path)
+            if not path.is_file():
+                continue
+            data = base64.b64encode(path.read_bytes()).decode("ascii")
+            suffix = path.suffix.lower()
+            mime = "image/png" if suffix == ".png" else "image/jpeg"
+            label = html.escape(frame.label)
+            frames_html += (
+                f'<figure><img src="data:{mime};base64,{data}" alt="{label}"/>'
+                f"<figcaption>{label} @ {frame.timestamp_s}s</figcaption></figure>"
+            )
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Evidence report {incident_id[:8]}</title>
+<style>
+  body {{ font-family: system-ui, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; }}
+  img {{ max-width: 100%; }} figure {{ margin: 1em 0; }}
+  table {{ width: 100%; border-collapse: collapse; margin: 1em 0; }}
+  th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+  .note {{ color: #555; }}
+</style></head>
+<body>
+<h1>Evidence report</h1>
+<p><strong>ID:</strong> {incident_id}</p>
+<p><strong>Severity:</strong> {html.escape(str(incident.severity))} ·
+<strong>Status:</strong> {html.escape(str(incident.status))}</p>
+<p><strong>Reasons:</strong> {reasons or "—"}</p>
+<p><strong>Time span:</strong> {incident.start_s:.2f}s – {incident.end_s:.2f}s</p>
+{f"<p><strong>Explanation:</strong> {explanation}</p>" if explanation else ""}
+<p class="note">Wording: potential package theft, for review. Faces are blurred on exported clips.</p>
+<h2>Events</h2>
+<table><thead><tr><th>Type</th><th>Time</th><th>Confidence</th></tr></thead>
+<tbody>{events_html or "<tr><td colspan='3'>No linked events.</td></tr>"}</tbody></table>
+<h2>Key frames</h2>
+{frames_html or '<p class="note">No key frames on disk.</p>'}
+</body></html>"""

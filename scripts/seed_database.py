@@ -51,11 +51,12 @@ def seed() -> None:
     # Start a protection session for the seed run.
     with session_scope() as session:
         manager = ProtectionSessionManager(
-            session, timeout_minutes=settings.protection_timeout_minutes,
+            session,
+            timeout_minutes=settings.protection_timeout_minutes,
         )
         active = manager.get_active_session()
         if active is None:
-            active = manager.start_session(source=SessionSource.SIMULATED_DELIVERY)
+            active = manager.start_and_activate(source=SessionSource.SIMULATED_DELIVERY)
         session_id = active.session_id
         logger.info("Using protection session %s", session_id)
 
@@ -64,8 +65,10 @@ def seed() -> None:
         payload = EventCreate(**raw)
         with session_scope() as session:
             result = ingest_event(session, payload, settings)
-            status = "NEW INCIDENT" if result.incident_created else (
-                "escalated" if result.incident else "ok"
+            status = (
+                "NEW INCIDENT"
+                if result.incident_created
+                else ("escalated" if result.incident else "ok")
             )
             logger.info(
                 "[%d/%d] %s  threat=%s  %s",

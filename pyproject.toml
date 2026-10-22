@@ -47,7 +47,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D100", "D101", "D102", "D103", "D104", "ARG001", "ARG002", "SIM117"]
-"frontend/*" = ["D100", "D103", "E402"]
+"frontend/*" = ["D100", "D101", "D102", "D103", "D107", "E402", "N999"]
 "main.py" = ["D100"]
 "app.py" = ["D100", "E402"]
 "backend/api/routes/*" = ["D100"]

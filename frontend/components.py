@@ -97,9 +97,9 @@ def empty_state(title: str, message: str) -> None:
 
 
 def error_state(message: str) -> None:
-    """Render an error state with a retry hint."""
-    st.error(f"⚠️ {message}")
-    st.caption("Check that the backend is running on http://localhost:8000")
+    """Render an error state with a retry hint. Never dumps raw JSON."""
+    st.error(message)
+    st.caption("Start the API with `make api`, or set USE_MOCK=true for sample data.")
 
 
 def _hex_to_rgb(hex_color: str) -> str:

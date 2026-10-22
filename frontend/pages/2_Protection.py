@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from frontend import api_client
-from frontend.components import error_state, status_card, threat_badge
+from frontend.components import error_state, simulated_badge, status_card, threat_badge
 from frontend.styles import DANGER, GLOBAL_CSS, SUCCESS, WARNING
 
 
@@ -41,6 +41,9 @@ def render() -> None:
             status_card("Time Remaining", f"{mins}m {secs}s")
         else:
             status_card("Source", source or "—")
+    if source == "SIMULATED_DELIVERY":
+        st.markdown(simulated_badge(), unsafe_allow_html=True)
+    st.caption("Protection state and incident state are independent.")
 
     st.divider()
 
